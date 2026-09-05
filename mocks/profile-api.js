@@ -1,9 +1,5 @@
-let address = {
-  fullName: 'Amina Okafor',
-  line1: '48 Orchard Lane',
-  city: 'Bristol',
-  postcode: 'BS1 4QR'
-};
+const initialAddress = require('./profile-address.json');
+let address = { ...initialAddress };
 
 function profileApiMiddleware(request, response, next) {
   response.setHeader('Content-Type', 'application/json');
