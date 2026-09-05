@@ -2,6 +2,10 @@
 
 A React, Webpack and Playwright proof of concept for risk-based frontend delivery. It makes the RFC operational with observable browser journeys, transparent path-based review routing, visual and accessibility checks, and advisory runtime reachability reporting.
 
+## Interface preview
+
+![Delivery address screen](docs/screenshots/delivery-address.png)
+
 ## Local use
 
 ```sh
