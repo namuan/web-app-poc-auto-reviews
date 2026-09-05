@@ -1,0 +1,26 @@
+name: Product reachability
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run reachability
+      - uses: actions/upload-artifact@v4
+        with:
+          name: product-reachability
+          path: .artifacts/product-reachability.md

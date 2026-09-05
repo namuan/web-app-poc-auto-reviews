@@ -1,0 +1,4 @@
+allowlist:
+  - path: src/features/emergency-recovery/**
+    reason: Emergency-only recovery path
+    review_when: Recovery flow is changed

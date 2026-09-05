@@ -1,0 +1,103 @@
+name: PR safety gates
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      lane: ${{ steps.risk.outputs.lane }}
+      behavior_affecting: ${{ steps.risk.outputs.behavior_affecting }}
+      visual_required: ${{ steps.risk.outputs.visual_required }}
+      auto_merge_candidate: ${{ steps.risk.outputs.auto_merge_candidate }}
+      journey_grep: ${{ steps.impact.outputs.grep }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - id: risk
+        run: npm run classify-pr -- --base "${{ github.event.pull_request.base.sha }}"
+      - id: impact
+        run: npm run select-journeys
+      - run: |
+          cat .artifacts/risk-report.json >> "$GITHUB_STEP_SUMMARY"
+          echo '### Selected journey evidence' >> "$GITHUB_STEP_SUMMARY"
+          echo '${{ steps.impact.outputs.grep }}' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: risk-evidence
+          path: .artifacts/risk-report.json
+
+  deterministic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run build
+      - run: npm audit --audit-level=high
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  journeys:
+    needs: classify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run affected journeys
+        env:
+          GREP: ${{ needs.classify.outputs.journey_grep }}
+        run: |
+          if [ -z "$GREP" ]; then
+            npm run test:journeys
+          else
+            npx playwright test --grep "$GREP"
+          fi
+      - run: npm run test:critical
+      - if: needs.classify.outputs.visual_required == 'true'
+        run: npm run test:visual
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report
+
+  route-for-review:
+    needs: [classify, deterministic, journeys]
+    if: always() && (needs.classify.outputs.auto_merge_candidate != 'true' || needs.deterministic.result != 'success' || needs.journeys.result != 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Mandatory human review is required for this pull request.' >> "$GITHUB_STEP_SUMMARY"
+
+  auto-merge:
+    needs: [classify, deterministic, journeys]
+    if: needs.classify.outputs.auto_merge_candidate == 'true' && needs.deterministic.result == 'success' && needs.journeys.result == 'success' && contains(github.event.pull_request.labels.*.name, 'auto-merge-requested')
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr merge "${{ github.event.pull_request.number }}" --auto --squash

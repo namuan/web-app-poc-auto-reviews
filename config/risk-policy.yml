@@ -1,0 +1,22 @@
+sensitive_paths:
+  - src/auth/**
+  - src/routing/**
+  - src/state/core/**
+  - src/api/core/**
+  - package.json
+  - package-lock.json
+  - webpack.config.*
+  - Dockerfile
+  - .github/workflows/**
+low_risk_limits:
+  max_production_files: 10
+  max_changed_production_lines: 300
+  max_feature_areas: 1
+auto_merge_requires:
+  - build
+  - lint
+  - affected_playwright
+  - critical_playwright
+  - visual_if_applicable
+  - no_sensitive_paths
+  - no_unexplained_behavior_change

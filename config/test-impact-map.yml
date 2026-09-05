@@ -1,0 +1,8 @@
+profile:
+  source:
+    - src/features/profile/**
+  tests:
+    - '@profile'
+critical_always:
+  tests:
+    - '@critical'

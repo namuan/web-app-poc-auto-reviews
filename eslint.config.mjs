@@ -1,0 +1,23 @@
+import eslint from '@eslint/js';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsparser from '@typescript-eslint/parser';
+import prettier from 'eslint-config-prettier';
+import globals from 'globals';
+
+export default [
+  { ignores: ['dist/**', 'node_modules/**', 'playwright-report/**', 'test-results/**'] },
+  {
+    languageOptions: { globals: { ...globals.browser, ...globals.node } }
+  },
+  eslint.configs.recommended,
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: { parser: tsparser },
+    plugins: { '@typescript-eslint': tseslint },
+    rules: {
+      ...tseslint.configs.recommended.rules,
+      '@typescript-eslint/no-explicit-any': 'error'
+    }
+  },
+  prettier
+];
